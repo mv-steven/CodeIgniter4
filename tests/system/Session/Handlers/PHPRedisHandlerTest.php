@@ -26,6 +26,7 @@ final class PHPRedisHandlerTest extends RedisHandlerTest
 
         $handler = new RedisHandler($this->config, $this->config->ip);
         $handler->setLogger(new TestLogger(new LoggerConfig()));
+
         return $handler;
     }
 }

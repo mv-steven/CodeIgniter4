@@ -331,7 +331,7 @@ class PredisHandler extends BaseHandler
     {
         try {
             $data = unserialize($data);
-        } catch (\Throwable $t) {
+        } catch (Throwable $t) {
             // nothing to do about this, $data was unmodified
         }
 

@@ -26,6 +26,7 @@ final class PredisHandlerTest extends RedisHandlerTest
 
         $handler = new PredisHandler($this->config, $this->config->ip);
         $handler->setLogger(new TestLogger(new LoggerConfig()));
+
         return $handler;
     }
 }
