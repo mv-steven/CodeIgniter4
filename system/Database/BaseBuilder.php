@@ -270,7 +270,7 @@ class BaseBuilder
      *
      * @throws DatabaseException
      */
-    public function __construct($tableName, ConnectionInterface &$db, ?array $options = null)
+    public function __construct($tableName, ConnectionInterface $db, ?array $options = null)
     {
         if (empty($tableName)) {
             throw new DatabaseException('A table must be specified when creating a new Query Builder.');
@@ -443,6 +443,16 @@ class BaseBuilder
     public function selectCount(string $select = '', string $alias = '')
     {
         return $this->maxMinAvgSum($select, $alias, 'COUNT');
+    }
+
+    /**
+     * Adds a subquery to the selection
+     */
+    public function selectSubquery(BaseBuilder $subquery, string $as): self
+    {
+        $this->QBSelect[] = $this->buildSubquery($subquery, true, $as);
+
+        return $this;
     }
 
     /**
@@ -1041,7 +1051,7 @@ class BaseBuilder
                 $bind = $this->setBind($k, "%{$v}%", $escape);
             }
 
-            $likeStatement = $this->_like_statement($prefix, $this->db->protectIdentifiers($k, false, $escape), $not, $bind, $insensitiveSearch);
+            $likeStatement = $this->_like_statement($prefix, $k, $not, $bind, $insensitiveSearch);
 
             // some platforms require an escape sequence definition for LIKE wildcards
             if ($escape === true && $this->db->likeEscapeStr !== '') {
@@ -1063,7 +1073,7 @@ class BaseBuilder
     protected function _like_statement(?string $prefix, string $column, ?string $not, string $bind, bool $insensitiveSearch = false): string
     {
         if ($insensitiveSearch === true) {
-            return "{$prefix} LOWER({$column}) {$not} LIKE :{$bind}:";
+            return "{$prefix} LOWER(" . $this->db->escapeIdentifiers($column) . ") {$not} LIKE :{$bind}:";
         }
 
         return "{$prefix} {$column} {$not} LIKE :{$bind}:";
@@ -1662,7 +1672,10 @@ class BaseBuilder
             }
 
             if (! $hasQBSet) {
-                $this->resetWrite();
+                $this->resetRun([
+                    'QBSet'  => [],
+                    'QBKeys' => [],
+                ]);
             }
         }
 
@@ -2761,6 +2774,10 @@ class BaseBuilder
     {
         if ($builder instanceof Closure) {
             $builder($builder = $this->db->newQuery());
+        }
+
+        if ($builder === $this) {
+            throw new DatabaseException('The subquery cannot be the same object as the main query object.');
         }
 
         $subquery = strtr($builder->getCompiledSelect(), "\n", ' ');

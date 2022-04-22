@@ -326,7 +326,7 @@ abstract class BaseConnection implements ConnectionInterface
      *
      * @var string
      */
-    protected $queryClass = 'CodeIgniter\\Database\\Query';
+    protected $queryClass = Query::class;
 
     /**
      * Saves our connection settings.
@@ -341,6 +341,13 @@ abstract class BaseConnection implements ConnectionInterface
 
         if (class_exists($queryClass)) {
             $this->queryClass = $queryClass;
+        }
+
+        if ($this->failover !== []) {
+            // If there is a failover database, connect now to do failover.
+            // Otherwise, Query Builder creates SQL statement with the main database config
+            // (DBPrefix) even when the main database is down.
+            $this->initialize();
         }
     }
 
@@ -508,7 +515,7 @@ abstract class BaseConnection implements ConnectionInterface
     }
 
     /**
-     * The name of the platform in use (MySQLi, mssql, etc)
+     * The name of the platform in use (MySQLi, Postgre, SQLite3, OCI8, etc)
      */
     public function getPlatform(): string
     {
@@ -962,8 +969,9 @@ abstract class BaseConnection implements ConnectionInterface
      * the correct identifiers.
      *
      * @param array|string $item
-     * @param bool         $prefixSingle Prefix an item with no segments?
-     * @param bool         $fieldExists  Supplied $item contains a field name?
+     * @param bool         $prefixSingle       Prefix a table name with no segments?
+     * @param bool         $protectIdentifiers Protect table or column names?
+     * @param bool         $fieldExists        Supplied $item contains a column name?
      *
      * @return array|string
      */
@@ -1021,8 +1029,7 @@ abstract class BaseConnection implements ConnectionInterface
             //
             // NOTE: The ! empty() condition prevents this method
             // from breaking when QB isn't enabled.
-            $firstSegment = trim($parts[0], $this->escapeChar);
-            if (! empty($this->aliasedTables) && in_array($firstSegment, $this->aliasedTables, true)) {
+            if (! empty($this->aliasedTables) && in_array($parts[0], $this->aliasedTables, true)) {
                 if ($protectIdentifiers === true) {
                     foreach ($parts as $key => $val) {
                         if (! in_array($val, $this->reservedIdentifiers, true)) {

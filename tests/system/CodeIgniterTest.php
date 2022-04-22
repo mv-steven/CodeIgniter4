@@ -12,6 +12,7 @@
 namespace CodeIgniter;
 
 use CodeIgniter\Config\Services;
+use CodeIgniter\HTTP\Response;
 use CodeIgniter\Router\RouteCollection;
 use CodeIgniter\Test\CIUnitTestCase;
 use CodeIgniter\Test\Mock\MockCodeIgniter;
@@ -26,11 +27,7 @@ use Tests\Support\Filters\Customfilter;
  */
 final class CodeIgniterTest extends CIUnitTestCase
 {
-    /**
-     * @var CodeIgniter
-     */
-    protected $codeigniter;
-
+    protected CodeIgniter $codeigniter;
     protected $routes;
 
     protected function setUp(): void
@@ -50,6 +47,8 @@ final class CodeIgniterTest extends CIUnitTestCase
         if (count(ob_list_handlers()) > 1) {
             ob_end_clean();
         }
+
+        $this->resetServices();
     }
 
     public function testRunEmptyDefaultRoute()
@@ -94,15 +93,34 @@ final class CodeIgniterTest extends CIUnitTestCase
         // Inject mock router.
         $routes = Services::routes();
         $routes->setAutoRoute(false);
-        $routes->set404Override('Home::index');
+        $routes->set404Override('Tests\Support\Controllers\Hello::index');
         $router = Services::router($routes, Services::request());
         Services::injectMock('router', $router);
 
         ob_start();
-        $this->codeigniter->useSafeOutput(true)->run();
+        $this->codeigniter->useSafeOutput(true)->run($routes);
         $output = ob_get_clean();
 
-        $this->assertStringContainsString('Welcome to CodeIgniter', $output);
+        $this->assertStringContainsString('Hello', $output);
+    }
+
+    public function testRun404OverrideControllerReturnsResponse()
+    {
+        $_SERVER['argv'] = ['index.php', '/'];
+        $_SERVER['argc'] = 2;
+
+        // Inject mock router.
+        $routes = Services::routes();
+        $routes->setAutoRoute(false);
+        $routes->set404Override('Tests\Support\Controllers\Popcorn::pop');
+        $router = Services::router($routes, Services::request());
+        Services::injectMock('router', $router);
+
+        ob_start();
+        $this->codeigniter->useSafeOutput(true)->run($routes);
+        $output = ob_get_clean();
+
+        $this->assertStringContainsString('Oops', $output);
     }
 
     public function testRun404OverrideByClosure()
@@ -199,7 +217,7 @@ final class CodeIgniterTest extends CIUnitTestCase
 
         $response = Services::response(null, false);
 
-        $this->assertInstanceOf('\CodeIgniter\HTTP\Response', $response);
+        $this->assertInstanceOf(Response::class, $response);
     }
 
     public function testRoutesIsEmpty()
@@ -257,6 +275,7 @@ final class CodeIgniterTest extends CIUnitTestCase
         $config->forceGlobalSecureRequests = true;
 
         $codeigniter = new MockCodeIgniter($config);
+        $codeigniter->setContext('web');
 
         $this->getPrivateMethodInvoker($codeigniter, 'getRequestObject')();
         $this->getPrivateMethodInvoker($codeigniter, 'getResponseObject')();
@@ -420,5 +439,72 @@ final class CodeIgniterTest extends CIUnitTestCase
         $output = ob_get_clean();
 
         $this->assertStringContainsString('Welcome to CodeIgniter', $output);
+    }
+
+    public function testRunCLIRoute()
+    {
+        $_SERVER['argv'] = ['index.php', 'cli'];
+        $_SERVER['argc'] = 2;
+
+        $_SERVER['REQUEST_URI']     = '/cli';
+        $_SERVER['SERVER_PROTOCOL'] = 'HTTP/1.1';
+        $_SERVER['REQUEST_METHOD']  = 'CLI';
+
+        $routes = Services::routes();
+        $routes->cli('cli', '\Tests\Support\Controllers\Popcorn::index');
+
+        ob_start();
+        $this->codeigniter->useSafeOutput(true)->run();
+        $output = ob_get_clean();
+
+        $this->assertStringContainsString('Method Not Allowed', $output);
+    }
+
+    public function testSpoofRequestMethodCanUsePUT()
+    {
+        $_SERVER['argv'] = ['index.php'];
+        $_SERVER['argc'] = 1;
+
+        $_SERVER['REQUEST_URI']     = '/';
+        $_SERVER['SERVER_PROTOCOL'] = 'HTTP/1.1';
+        $_SERVER['REQUEST_METHOD']  = 'POST';
+
+        $_POST['_method'] = 'PUT';
+
+        $routes = \Config\Services::routes();
+        $routes->setDefaultNamespace('App\Controllers');
+        $routes->resetRoutes();
+        $routes->post('/', 'Home::index');
+        $routes->put('/', 'Home::index');
+
+        ob_start();
+        $this->codeigniter->useSafeOutput(true)->run();
+        ob_get_clean();
+
+        $this->assertSame('put', Services::request()->getMethod());
+    }
+
+    public function testSpoofRequestMethodCannotUseGET()
+    {
+        $_SERVER['argv'] = ['index.php'];
+        $_SERVER['argc'] = 1;
+
+        $_SERVER['REQUEST_URI']     = '/';
+        $_SERVER['SERVER_PROTOCOL'] = 'HTTP/1.1';
+        $_SERVER['REQUEST_METHOD']  = 'POST';
+
+        $_POST['_method'] = 'GET';
+
+        $routes = \Config\Services::routes();
+        $routes->setDefaultNamespace('App\Controllers');
+        $routes->resetRoutes();
+        $routes->post('/', 'Home::index');
+        $routes->get('/', 'Home::index');
+
+        ob_start();
+        $this->codeigniter->useSafeOutput(true)->run();
+        ob_get_clean();
+
+        $this->assertSame('post', Services::request()->getMethod());
     }
 }

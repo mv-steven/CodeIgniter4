@@ -33,6 +33,12 @@ final class MigrationRunnerTest extends CIUnitTestCase
     use DatabaseTestTrait;
 
     protected $refresh = true;
+
+    // Do not migrate automatically, because we test migrations.
+    protected $migrate = false;
+
+    // Use specific migration files for this test case.
+    protected $namespace = 'Tests\Support\MigrationTestMigrations';
     protected $root;
     protected $start;
     protected $config;
@@ -62,6 +68,8 @@ final class MigrationRunnerTest extends CIUnitTestCase
     {
         parent::tearDown();
 
+        // To delete data with `$this->regressDatabase()`, set it true.
+        $this->migrate = true;
         $this->regressDatabase();
     }
 
@@ -254,7 +262,7 @@ final class MigrationRunnerTest extends CIUnitTestCase
 
     public function testMigrationThrowsDisabledException()
     {
-        $this->expectException('CodeIgniter\Exceptions\ConfigException');
+        $this->expectException(ConfigException::class);
         $this->expectExceptionMessage('Migrations have been loaded but are disabled or setup incorrectly.');
 
         $config          = $this->config;
@@ -342,10 +350,11 @@ final class MigrationRunnerTest extends CIUnitTestCase
     {
         $runner = new MigrationRunner($this->config);
         $runner->setSilent(false)
-            ->setNamespace('Tests\Support\MigrationTestMigrations')
-            ->clearHistory();
+            ->setNamespace('Tests\Support\MigrationTestMigrations');
 
         $result = null;
+
+        Events::removeAllListeners();
         Events::on('migrate', static function ($arg) use (&$result) {
             $result = $arg;
         });
@@ -360,10 +369,10 @@ final class MigrationRunnerTest extends CIUnitTestCase
     {
         $runner = new MigrationRunner($this->config);
         $runner->setSilent(false)
-            ->setNamespace('Tests\Support\MigrationTestMigrations')
-            ->clearHistory();
+            ->setNamespace('Tests\Support\MigrationTestMigrations');
 
         $result = null;
+        Events::removeAllListeners();
         Events::on('migrate', static function ($arg) use (&$result) {
             $result = $arg;
         });

@@ -42,43 +42,8 @@ Create a Migration
 This will be the first migration for a new site which has a blog. All
 migrations go in the **app/Database/Migrations/** directory and have names such
 as **2022-01-31-013057_AddBlog.php**.
-::
 
-    <?php
-
-    namespace App\Database\Migrations;
-
-    use CodeIgniter\Database\Migration;
-
-    class AddBlog extends Migration
-    {
-        public function up()
-        {
-            $this->forge->addField([
-                'blog_id'          => [
-                    'type'           => 'INT',
-                    'constraint'     => 5,
-                    'unsigned'       => true,
-                    'auto_increment' => true,
-                ],
-                'blog_title'       => [
-                    'type'       => 'VARCHAR',
-                    'constraint' => '100',
-                ],
-                'blog_description' => [
-                    'type' => 'TEXT',
-                    'null' => true,
-                ],
-            ]);
-            $this->forge->addKey('blog_id', true);
-            $this->forge->createTable('blog');
-        }
-
-        public function down()
-        {
-            $this->forge->dropTable('blog');
-        }
-    }
+.. literalinclude:: migration/001.php
 
 The database connection and the database Forge class are both available to you through
 ``$this->db`` and ``$this->forge``, respectively.
@@ -95,16 +60,7 @@ When your tables include Foreign Keys, migrations can often cause problems as yo
 To temporarily bypass the foreign key checks while running migrations, use the ``disableForeignKeyChecks()`` and
 ``enableForeignKeyChecks()`` methods on the database connection.
 
-::
-
-    public function up()
-    {
-        $this->db->disableForeignKeyChecks()
-
-        // Migration rules would go here..
-
-        $this->db->enableForeignKeyChecks();
-    }
+.. literalinclude:: migration/002.php
 
 Database Groups
 ===============
@@ -115,28 +71,9 @@ in that same configuration file. There may be times when you need different sche
 database groups. Perhaps you have one database that is used for all general site information, while
 another database is used for mission critical data. You can ensure that migrations are run only
 against the proper group by setting the ``$DBGroup`` property on your migration. This name must
-match the name of the database group exactly::
+match the name of the database group exactly:
 
-    <?php
-
-    namespace App\Database\Migrations;
-
-    use CodeIgniter\Database\Migration;
-
-    class AddBlog extends Migration
-    {
-        protected $DBGroup = 'alternate_db_group';
-
-        public function up()
-        {
-            // ...
-        }
-
-        public function down()
-        {
-            // ...
-        }
-    }
+.. literalinclude:: migration/003.php
 
 Namespaces
 ==========
@@ -149,12 +86,9 @@ it finds in Database/Migrations.
 Each namespace has its own version sequence, this will help you upgrade and downgrade each module (namespace) without affecting other namespaces.
 
 For example, assume that we have the following namespaces defined in our Autoload
-configuration file::
+configuration file:
 
-    $psr4 = [
-        'App'       => APPPATH,
-        'MyCompany' => ROOTPATH . 'MyCompany',
-    ];
+.. literalinclude:: migration/004.php
 
 This will look for any migrations located at both **APPPATH/Database/Migrations** and
 **ROOTPATH/MyCompany/Database/Migrations**. This makes it simple to include migrations in your
@@ -165,25 +99,9 @@ Usage Example
 *************
 
 In this example some simple code is placed in **app/Controllers/Migrate.php**
-to update the schema::
+to update the schema:
 
-    <?php
-
-    namespace App\Controllers;
-
-    class Migrate extends \CodeIgniter\Controller
-    {
-        public function index()
-        {
-            $migrate = \Config\Services::migrations();
-
-            try {
-                $migrate->latest();
-            } catch (\Throwable $e) {
-                // Do something with the error here...
-            }
-        }
-    }
+.. literalinclude:: migration/005.php
 
 .. _command-line-tools:
 
@@ -244,8 +162,13 @@ You can use (refresh) with the following options:
 Displays a list of all migrations and the date and time they ran, or '--' if they have not been run::
 
   > php spark migrate:status
-  Filename               Migrated On
-  First_migration.php    2016-04-25 04:44:22
+  +----------------------+-------------------+-----------------------+---------+---------------------+-------+
+  | Namespace            | Version           | Filename              | Group   | Migrated On         | Batch |
+  +----------------------+-------------------+-----------------------+---------+---------------------+-------+
+  | App                  | 2022-04-06-234508 | CreateCiSessionsTable | default | 2022-04-06 18:45:14 | 2     |
+  | CodeIgniter\Settings | 2021-07-04-041948 | CreateSettingsTable   | default | 2022-04-06 01:23:08 | 1     |
+  | CodeIgniter\Settings | 2021-11-14-143905 | AddContextColumn      | default | 2022-04-06 01:23:08 | 1     |
+  +----------------------+-------------------+-----------------------+---------+---------------------+-------+
 
 You can use (status) with the following options:
 
@@ -313,10 +236,8 @@ Class Reference
         :rtype:    bool
 
         Regress can be used to roll back changes to a previous state, batch by batch.
-        ::
 
-            $migration->regress(5);
-            $migration->regress(-1);
+        .. literalinclude:: migration/006.php
 
     .. php:method:: force($path, $namespace, $group)
 
@@ -336,9 +257,9 @@ Class Reference
         :returns:   The current MigrationRunner instance
         :rtype:     CodeIgniter\\Database\\MigrationRunner
 
-        Sets the namespace the library should look for migration files::
+        Sets the namespace the library should look for migration files:
 
-            $migration->setNamespace($namespace)->latest();
+        .. literalinclude:: migration/007.php
 
     .. php:method:: setGroup($group)
 
@@ -346,6 +267,6 @@ Class Reference
         :returns:   The current MigrationRunner instance
         :rtype:     CodeIgniter\\Database\\MigrationRunner
 
-        Sets the group the library should look for migration files::
+        Sets the group the library should look for migration files:
 
-            $migration->setGroup($group)->latest();
+        .. literalinclude:: migration/008.php

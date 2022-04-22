@@ -108,6 +108,12 @@ class Validation implements ValidationInterface
      */
     public function run(?array $data = null, ?string $group = null, ?string $dbGroup = null): bool
     {
+        // If there are still validation errors for redirect_with_input request, remove them.
+        // See `getErrors()` method.
+        if (isset($_SESSION, $_SESSION['_ci_validation_errors'])) {
+            unset($_SESSION['_ci_validation_errors']);
+        }
+
         $data ??= $this->data;
 
         // i.e. is_unique
@@ -139,7 +145,12 @@ class Validation implements ValidationInterface
                 $rules = $this->splitRules($rules);
             }
 
-            $values = dot_array_search($field, $data);
+            $values = strpos($field, '*') !== false
+                ? array_filter(array_flatten_with_dots($data), static fn ($key) => preg_match(
+                    '/^' . str_replace('\.\*', '\..+', preg_quote($field, '/')) . '$/',
+                    $key
+                ), ARRAY_FILTER_USE_KEY)
+                : dot_array_search($field, $data);
 
             if ($values === []) {
                 // We'll process the values right away if an empty array
@@ -148,10 +159,10 @@ class Validation implements ValidationInterface
                 continue;
             }
 
-            if (strpos($field, '*') !== false && is_array($values)) {
+            if (strpos($field, '*') !== false) {
                 // Process multiple fields
-                foreach ($values as $value) {
-                    $this->processRules($field, $setup['label'] ?? $field, $value, $rules, $data);
+                foreach ($values as $dotField => $value) {
+                    $this->processRules($dotField, $setup['label'] ?? $field, $value, $rules, $data);
                 }
             } else {
                 // Process single field
@@ -626,7 +637,9 @@ class Validation implements ValidationInterface
      */
     public function hasError(string $field): bool
     {
-        return array_key_exists($field, $this->getErrors());
+        $pattern = '/^' . str_replace('\.\*', '\..+', preg_quote($field, '/')) . '$/';
+
+        return (bool) preg_grep($pattern, array_keys($this->getErrors()));
     }
 
     /**
@@ -639,7 +652,12 @@ class Validation implements ValidationInterface
             $field = array_key_first($this->rules);
         }
 
-        return array_key_exists($field, $this->getErrors()) ? $this->errors[$field] : '';
+        $errors = array_filter($this->getErrors(), static fn ($key) => preg_match(
+            '/^' . str_replace('\.\*', '\..+', preg_quote($field, '/')) . '$/',
+            $key
+        ), ARRAY_FILTER_USE_KEY);
+
+        return $errors === [] ? '' : implode("\n", $errors);
     }
 
     /**

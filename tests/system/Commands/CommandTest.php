@@ -27,6 +27,8 @@ final class CommandTest extends CIUnitTestCase
 
     protected function setUp(): void
     {
+        $this->resetServices();
+
         parent::setUp();
 
         CITestStreamFilter::$buffer = '';
@@ -104,16 +106,6 @@ final class CommandTest extends CIUnitTestCase
         $this->assertStringContainsString('| Namespace', $this->getBuffer());
         $this->assertStringContainsString('| Config', $this->getBuffer());
         $this->assertStringContainsString('| Yes', $this->getBuffer());
-    }
-
-    public function testRoutesCommand()
-    {
-        command('routes');
-
-        $this->assertStringContainsString('| (Closure)', $this->getBuffer());
-        $this->assertStringContainsString('| Route', $this->getBuffer());
-        $this->assertStringContainsString('| testing', $this->getBuffer());
-        $this->assertStringContainsString('\\TestController::index', $this->getBuffer());
     }
 
     public function testInexistentCommandWithNoAlternatives()

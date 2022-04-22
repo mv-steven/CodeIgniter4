@@ -5,20 +5,25 @@ on:
     branches:
       - develop
     paths:
+      - 'app/**.php'
+      - 'system/**.php'
+      - 'tests/**.php'
+      - 'spark'
       - composer.json
-      - spark
       - phpunit.xml.dist
-      - '**.php'
       - .github/workflows/test-phpunit.yml
+
   pull_request:
     branches:
       - develop
       - 'v4.*'
     paths:
+      - 'app/**.php'
+      - 'system/**.php'
+      - 'tests/**.php'
+      - 'spark'
       - composer.json
-      - spark
       - phpunit.xml.dist
-      - '**.php'
       - .github/workflows/test-phpunit.yml
 
 jobs:
@@ -115,7 +120,7 @@ jobs:
         run: echo -e "ALTER SESSION SET CONTAINER = XEPDB1;\nCREATE BIGFILE TABLESPACE \"TEST\" DATAFILE '/opt/oracle/product/18c/dbhomeXE/dbs/TEST' SIZE 10M AUTOEXTEND ON MAXSIZE UNLIMITED SEGMENT SPACE MANAGEMENT AUTO EXTENT MANAGEMENT LOCAL AUTOALLOCATE;\nCREATE USER \"ORACLE\" IDENTIFIED BY \"ORACLE\" DEFAULT TABLESPACE \"TEST\" TEMPORARY TABLESPACE TEMP QUOTA UNLIMITED ON \"TEST\";\nGRANT CONNECT,RESOURCE TO \"ORACLE\";\nexit;" | /lib/oracle/18.5/client64/bin/sqlplus -s sys/Oracle18@localhost:1521/XE as sysdba
 
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Setup PHP, with composer and extensions
         uses: shivammathur/setup-php@v2
@@ -139,7 +144,7 @@ jobs:
         run: echo "::set-output name=dir::$(composer config cache-files-dir)"
 
       - name: Cache dependencies
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ${{ steps.composercache.outputs.dir }}
           key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
@@ -157,7 +162,7 @@ jobs:
         run: echo "TACHYCARDIA_MONITOR_GA=enabled" >> $GITHUB_ENV
 
       - name: Compute coverage option
-        uses: actions/github-script@v3
+        uses: actions/github-script@v6
         id: phpunit-coverage-option
         with:
           script: 'return "${{ matrix.php-versions }}" == "8.0" ? "" : "--no-coverage"'

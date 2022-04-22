@@ -76,7 +76,7 @@ class RouteCollection implements RouteCollectionInterface
      *
      * @var bool
      */
-    protected $autoRoute = true;
+    protected $autoRoute = false;
 
     /**
      * A callable that will be shown
@@ -105,6 +105,16 @@ class RouteCollection implements RouteCollectionInterface
      * An array of all routes and their mappings.
      *
      * @var array
+     *
+     * [
+     *     verb => [
+     *         routeName => [
+     *             'route' => [
+     *                 routeKey => handler,
+     *             ]
+     *         ]
+     *     ],
+     * ]
      */
     protected $routes = [
         '*'       => [],
@@ -357,9 +367,14 @@ class RouteCollection implements RouteCollectionInterface
         if ($this->moduleConfig->shouldDiscover('routes')) {
             $files = $this->fileLocator->search('Config/Routes.php');
 
+            $excludes = [
+                APPPATH . 'Config' . DIRECTORY_SEPARATOR . 'Routes.php',
+                SYSTEMPATH . 'Config' . DIRECTORY_SEPARATOR . 'Routes.php',
+            ];
+
             foreach ($files as $file) {
                 // Don't include our main file again...
-                if ($file === APPPATH . 'Config/Routes.php') {
+                if (in_array($file, $excludes, true)) {
                     continue;
                 }
 
@@ -1137,6 +1152,11 @@ class RouteCollection implements RouteCollectionInterface
             $from = trim($from, '/');
         }
 
+        // When redirecting to named route, $to is an array like `['zombies' => '\Zombies::index']`.
+        if (is_array($to) && count($to) === 2) {
+            $to = $this->processArrayCallableSyntax($from, $to);
+        }
+
         $options = array_merge($this->currentOptions ?? [], $options ?? []);
 
         // Route priority detect
@@ -1225,6 +1245,47 @@ class RouteCollection implements RouteCollectionInterface
         if (isset($options['redirect']) && is_numeric($options['redirect'])) {
             $this->routes['*'][$name]['redirect'] = $options['redirect'];
         }
+    }
+
+    private function processArrayCallableSyntax(string $from, array $to): string
+    {
+        // [classname, method]
+        // eg, [Home::class, 'index']
+        if (is_callable($to, true, $callableName)) {
+            // If the route has placeholders, add params automatically.
+            $params = $this->getMethodParams($from);
+
+            return '\\' . $callableName . $params;
+        }
+
+        // [[classname, method], params]
+        // eg, [[Home::class, 'index'], '$1/$2']
+        if (
+            isset($to[0], $to[1])
+            && is_callable($to[0], true, $callableName)
+            && is_string($to[1])
+        ) {
+            $to = '\\' . $callableName . '/' . $to[1];
+        }
+
+        return $to;
+    }
+
+    /**
+     * Returns the method param string like `/$1/$2` for placeholders
+     */
+    private function getMethodParams(string $from): string
+    {
+        preg_match_all('/\(.+?\)/', $from, $matches);
+        $count = is_countable($matches[0]) ? count($matches[0]) : 0;
+
+        $params = '';
+
+        for ($i = 1; $i <= $count; $i++) {
+            $params .= '/$' . $i;
+        }
+
+        return $params;
     }
 
     /**
@@ -1351,5 +1412,46 @@ class RouteCollection implements RouteCollectionInterface
         $this->prioritize = $enabled;
 
         return $this;
+    }
+
+    /**
+     * Get all controllers in Route Handlers
+     *
+     * @param string|null $verb HTTP verb. `'*'` returns all controllers in any verb.
+     */
+    public function getRegisteredControllers(?string $verb = '*'): array
+    {
+        $routes = [];
+
+        if ($verb === '*') {
+            $rawRoutes = [];
+
+            foreach ($this->defaultHTTPMethods as $tmpVerb) {
+                $rawRoutes = array_merge($rawRoutes, $this->routes[$tmpVerb]);
+            }
+
+            foreach ($rawRoutes as $route) {
+                $key     = key($route['route']);
+                $handler = $route['route'][$key];
+
+                $routes[$key] = $handler;
+            }
+        } else {
+            $routes = $this->getRoutes($verb);
+        }
+
+        $controllers = [];
+
+        foreach ($routes as $handler) {
+            if (! is_string($handler)) {
+                continue;
+            }
+
+            [$controller] = explode('::', $handler, 2);
+
+            $controllers[] = $controller;
+        }
+
+        return array_unique($controllers);
     }
 }

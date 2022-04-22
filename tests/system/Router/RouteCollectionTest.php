@@ -15,6 +15,7 @@ use CodeIgniter\Config\Services;
 use CodeIgniter\Router\Exceptions\RouterException;
 use CodeIgniter\Test\CIUnitTestCase;
 use Config\Modules;
+use Tests\Support\Controllers\Hello;
 
 /**
  * @backupGlobals enabled
@@ -55,6 +56,45 @@ final class RouteCollectionTest extends CIUnitTestCase
 
         $routes = $routes->getRoutes();
 
+        $this->assertSame($expects, $routes);
+    }
+
+    public function testBasicAddCallable()
+    {
+        $routes = $this->getCollector();
+
+        $routes->add('home', [Hello::class, 'index']);
+
+        $routes  = $routes->getRoutes();
+        $expects = [
+            'home' => '\Tests\Support\Controllers\Hello::index',
+        ];
+        $this->assertSame($expects, $routes);
+    }
+
+    public function testBasicAddCallableWithParamsString()
+    {
+        $routes = $this->getCollector();
+
+        $routes->add('product/(:num)/(:num)', [[Hello::class, 'index'], '$2/$1']);
+
+        $routes  = $routes->getRoutes();
+        $expects = [
+            'product/([0-9]+)/([0-9]+)' => '\Tests\Support\Controllers\Hello::index/$2/$1',
+        ];
+        $this->assertSame($expects, $routes);
+    }
+
+    public function testBasicAddCallableWithParamsWithoutString()
+    {
+        $routes = $this->getCollector();
+
+        $routes->add('product/(:num)/(:num)', [Hello::class, 'index']);
+
+        $routes  = $routes->getRoutes();
+        $expects = [
+            'product/([0-9]+)/([0-9]+)' => '\Tests\Support\Controllers\Hello::index/$1/$2',
+        ];
         $this->assertSame($expects, $routes);
     }
 
@@ -1633,5 +1673,98 @@ final class RouteCollectionTest extends CIUnitTestCase
 
         $collection->add('string-negative-integer', 'Controller::method', ['priority' => '-1']);
         $this->assertSame(1, $collection->getRoutesOptions('string-negative-integer')['priority']);
+    }
+
+    public function testGetRegisteredControllersReturnsControllerForHTTPverb()
+    {
+        $collection = $this->getCollector();
+        $collection->get('test', '\App\Controllers\Hello::get');
+        $collection->post('test', '\App\Controllers\Hello::post');
+
+        $routes = $collection->getRegisteredControllers('get');
+
+        $expects = [
+            '\App\Controllers\Hello',
+        ];
+        $this->assertSame($expects, $routes);
+
+        $routes = $collection->getRegisteredControllers('post');
+
+        $expects = [
+            '\App\Controllers\Hello',
+        ];
+        $this->assertSame($expects, $routes);
+    }
+
+    public function testGetRegisteredControllersReturnsTwoControllers()
+    {
+        $collection = $this->getCollector();
+        $collection->post('test', '\App\Controllers\Test::post');
+        $collection->post('hello', '\App\Controllers\Hello::post');
+
+        $routes = $collection->getRegisteredControllers('post');
+
+        $expects = [
+            '\App\Controllers\Test',
+            '\App\Controllers\Hello',
+        ];
+        $this->assertSame($expects, $routes);
+    }
+
+    public function testGetRegisteredControllersReturnsOneControllerWhenTwoRoutsWithDiffernetMethods()
+    {
+        $collection = $this->getCollector();
+        $collection->post('test', '\App\Controllers\Test::test');
+        $collection->post('hello', '\App\Controllers\Test::hello');
+
+        $routes = $collection->getRegisteredControllers('post');
+
+        $expects = [
+            '\App\Controllers\Test',
+        ];
+        $this->assertSame($expects, $routes);
+    }
+
+    public function testGetRegisteredControllersReturnsAllControllers()
+    {
+        $collection = $this->getCollector();
+        $collection->get('test', '\App\Controllers\Hello::get');
+        $collection->post('test', '\App\Controllers\Hello::post');
+        $collection->post('hello', '\App\Controllers\Test::hello');
+
+        $routes = $collection->getRegisteredControllers('*');
+
+        $expects = [
+            '\App\Controllers\Hello',
+            '\App\Controllers\Test',
+        ];
+        $this->assertSame($expects, $routes);
+    }
+
+    public function testGetRegisteredControllersReturnsControllerByAddMethod()
+    {
+        $collection = $this->getCollector();
+        $collection->get('test', '\App\Controllers\Hello::get');
+        $collection->add('hello', '\App\Controllers\Test::hello');
+
+        $routes = $collection->getRegisteredControllers('get');
+
+        $expects = [
+            '\App\Controllers\Hello',
+            '\App\Controllers\Test',
+        ];
+        $this->assertSame($expects, $routes);
+    }
+
+    public function testGetRegisteredControllersDoesNotReturnClosures()
+    {
+        $collection = $this->getCollector();
+        $collection->get('feed', static function () {
+        });
+
+        $routes = $collection->getRegisteredControllers('*');
+
+        $expects = [];
+        $this->assertSame($expects, $routes);
     }
 }

@@ -155,7 +155,7 @@ final class URITest extends CIUnitTestCase
     {
         $this->expectException(HTTPException::class);
         $url = 'http://abc:a123';
-        $uri = new URI($url);
+        new URI($url);
     }
 
     public function testMissingScheme()
@@ -984,5 +984,21 @@ final class URITest extends CIUnitTestCase
         $uri      = URI::createURIString('https', 'example.com/', '/');
 
         $this->assertSame($expected, $uri);
+    }
+
+    /**
+     * @see https://github.com/codeigniter4/CodeIgniter4/issues/5728
+     */
+    public function testForceGlobalSecureRequestsAndNonHTTPProtocol()
+    {
+        $config                            = new App();
+        $config->forceGlobalSecureRequests = true;
+        $config->baseURL                   = 'https://localhost/';
+        Factories::injectMock('config', 'App', $config);
+
+        $expected = 'ftp://localhost/path/to/test.txt';
+        $uri      = new URI($expected);
+
+        $this->assertSame($expected, (string) $uri);
     }
 }

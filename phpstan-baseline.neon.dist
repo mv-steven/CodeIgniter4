@@ -26,11 +26,6 @@ parameters:
 			path: system/Autoloader/Autoloader.php
 
 		-
-			message: "#^Method CodeIgniter\\\\Validation\\\\ValidationInterface\\:\\:run\\(\\) invoked with 3 parameters, 0\\-2 required\\.$#"
-			count: 1
-			path: system/BaseModel.php
-
-		-
 			message: "#^Property Config\\\\Cache\\:\\:\\$backupHandler \\(string\\) in isset\\(\\) is not nullable\\.$#"
 			count: 1
 			path: system/Cache/CacheFactory.php
@@ -106,17 +101,7 @@ parameters:
 			path: system/CodeIgniter.php
 
 		-
-			message: "#^Call to an undefined method CodeIgniter\\\\HTTP\\\\Request\\:\\:getSegments\\(\\)\\.$#"
-			count: 1
-			path: system/CodeIgniter.php
-
-		-
 			message: "#^Call to an undefined method CodeIgniter\\\\HTTP\\\\Request\\:\\:setLocale\\(\\)\\.$#"
-			count: 1
-			path: system/CodeIgniter.php
-
-		-
-			message: "#^Dead catch \\- CodeIgniter\\\\Exceptions\\\\PageNotFoundException is never thrown in the try block\\.$#"
 			count: 1
 			path: system/CodeIgniter.php
 
@@ -731,13 +716,18 @@ parameters:
 			path: system/Router/Router.php
 
 		-
+			message: "#^Call to an undefined method CodeIgniter\\\\Router\\\\RouteCollectionInterface\\:\\:getRegisteredControllers\\(\\)\\.$#"
+			count: 1
+			path: system/Router/Router.php
+
+		-
 			message: "#^Expression on left side of \\?\\? is not nullable\\.$#"
 			count: 1
 			path: system/Router/Router.php
 
 		-
 			message: "#^Method CodeIgniter\\\\Router\\\\RouteCollectionInterface\\:\\:getRoutes\\(\\) invoked with 1 parameter, 0 required\\.$#"
-			count: 2
+			count: 1
 			path: system/Router/Router.php
 
 		-
@@ -754,26 +744,6 @@ parameters:
 			message: "#^Access to an undefined property Config\\\\App\\:\\:\\$sessionDBGroup\\.$#"
 			count: 1
 			path: system/Session/Handlers/DatabaseHandler.php
-
-		-
-			message: "#^Property CodeIgniter\\\\Session\\\\Handlers\\\\BaseHandler\\:\\:\\$sessionID \\(string\\) in isset\\(\\) is not nullable\\.$#"
-			count: 1
-			path: system/Session/Handlers/DatabaseHandler.php
-
-		-
-			message: "#^Property CodeIgniter\\\\Session\\\\Handlers\\\\BaseHandler\\:\\:\\$sessionID \\(string\\) in isset\\(\\) is not nullable\\.$#"
-			count: 1
-			path: system/Session/Handlers/FileHandler.php
-
-		-
-			message: "#^Property CodeIgniter\\\\Session\\\\Handlers\\\\BaseHandler\\:\\:\\$sessionID \\(string\\) in isset\\(\\) is not nullable\\.$#"
-			count: 1
-			path: system/Session/Handlers/MemcachedHandler.php
-
-		-
-			message: "#^Property CodeIgniter\\\\Session\\\\Handlers\\\\BaseHandler\\:\\:\\$sessionID \\(string\\) in isset\\(\\) is not nullable\\.$#"
-			count: 1
-			path: system/Session/Handlers/RedisHandler.php
 
 		-
 			message: "#^Strict comparison using \\=\\=\\= between string and true will always evaluate to false\\.$#"
@@ -925,3 +895,7 @@ parameters:
 			paths:
 				- system/Cache/CacheFactory.php
 				- system/Filters/Filters.php
+
+		-
+			message: "#^Binary operation \"/\" between string and 8 results in an error\\.$#"
+			path: system/Encryption/Handlers/OpenSSLHandler.php

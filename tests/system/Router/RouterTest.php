@@ -14,6 +14,7 @@ namespace CodeIgniter\Router;
 use CodeIgniter\Config\Services;
 use CodeIgniter\Exceptions\PageNotFoundException;
 use CodeIgniter\HTTP\IncomingRequest;
+use CodeIgniter\Router\Exceptions\RouterException;
 use CodeIgniter\Test\CIUnitTestCase;
 use Config\Modules;
 use Tests\Support\Filters\Customfilter;
@@ -59,18 +60,16 @@ final class RouterTest extends CIUnitTestCase
             'books/(:num)/(:alpha)/(:num)'                    => 'Blog::show/$3/$1',
             'closure/(:num)/(:alpha)'                         => static fn ($num, $str) => $num . '-' . $str,
             '{locale}/pages'                                  => 'App\Pages::list_all',
-            'Admin/Admins'                                    => 'App\Admin\Admins::list_all',
+            'admin/admins'                                    => 'App\Admin\Admins::list_all',
+            'admin/admins/edit/(:any)'                        => 'App/Admin/Admins::edit_show/$1',
             '/some/slash'                                     => 'App\Slash::index',
             'objects/(:segment)/sort/(:segment)/([A-Z]{3,7})' => 'AdminList::objectsSortCreate/$1/$2/$3',
+            '(:segment)/(:segment)/(:segment)'                => '$2::$3/$1',
         ];
 
         $this->collection->map($routes);
         $this->request = Services::request();
         $this->request->setMethod('get');
-    }
-
-    protected function tearDown(): void
-    {
     }
 
     public function testEmptyURIMatchesDefaults()
@@ -199,8 +198,22 @@ final class RouterTest extends CIUnitTestCase
         $this->assertSame($expects, '123-alpha');
     }
 
+    public function testAutoRouteFindsDefaultControllerAndMethod()
+    {
+        $this->collection->setAutoRoute(true);
+        $this->collection->setDefaultController('Test');
+        $this->collection->setDefaultMethod('test');
+        $router = new Router($this->collection, $this->request);
+
+        $router->autoRoute('/');
+
+        $this->assertSame('Test', $router->controllerName());
+        $this->assertSame('test', $router->methodName());
+    }
+
     public function testAutoRouteFindsControllerWithFileAndMethod()
     {
+        $this->collection->setAutoRoute(true);
         $router = new Router($this->collection, $this->request);
 
         $router->autoRoute('myController/someMethod');
@@ -211,6 +224,7 @@ final class RouterTest extends CIUnitTestCase
 
     public function testAutoRouteFindsControllerWithFile()
     {
+        $this->collection->setAutoRoute(true);
         $router = new Router($this->collection, $this->request);
 
         $router->autoRoute('myController');
@@ -221,6 +235,7 @@ final class RouterTest extends CIUnitTestCase
 
     public function testAutoRouteFindsControllerWithSubfolder()
     {
+        $this->collection->setAutoRoute(true);
         $router = new Router($this->collection, $this->request);
 
         mkdir(APPPATH . 'Controllers/Subfolder');
@@ -235,6 +250,7 @@ final class RouterTest extends CIUnitTestCase
 
     public function testAutoRouteFindsDashedSubfolder()
     {
+        $this->collection->setAutoRoute(true);
         $router = new Router($this->collection, $this->request);
         $router->setTranslateURIDashes(true);
 
@@ -251,6 +267,7 @@ final class RouterTest extends CIUnitTestCase
 
     public function testAutoRouteFindsDashedController()
     {
+        $this->collection->setAutoRoute(true);
         $router = new Router($this->collection, $this->request);
         $router->setTranslateURIDashes(true);
 
@@ -269,6 +286,7 @@ final class RouterTest extends CIUnitTestCase
 
     public function testAutoRouteFindsDashedMethod()
     {
+        $this->collection->setAutoRoute(true);
         $router = new Router($this->collection, $this->request);
         $router->setTranslateURIDashes(true);
 
@@ -287,6 +305,7 @@ final class RouterTest extends CIUnitTestCase
 
     public function testAutoRouteFindsDefaultDashFolder()
     {
+        $this->collection->setAutoRoute(true);
         $router = new Router($this->collection, $this->request);
         $router->setTranslateURIDashes(true);
 
@@ -303,6 +322,7 @@ final class RouterTest extends CIUnitTestCase
 
     public function testAutoRouteFindsMByteDir()
     {
+        $this->collection->setAutoRoute(true);
         $router = new Router($this->collection, $this->request);
         $router->setTranslateURIDashes(true);
 
@@ -319,6 +339,7 @@ final class RouterTest extends CIUnitTestCase
 
     public function testAutoRouteFindsMByteController()
     {
+        $this->collection->setAutoRoute(true);
         $router = new Router($this->collection, $this->request);
         $router->setTranslateURIDashes(true);
 
@@ -334,6 +355,7 @@ final class RouterTest extends CIUnitTestCase
 
     public function testAutoRouteRejectsSingleDot()
     {
+        $this->collection->setAutoRoute(true);
         $router = new Router($this->collection, $this->request);
         $router->setTranslateURIDashes(true);
 
@@ -344,6 +366,7 @@ final class RouterTest extends CIUnitTestCase
 
     public function testAutoRouteRejectsDoubleDot()
     {
+        $this->collection->setAutoRoute(true);
         $router = new Router($this->collection, $this->request);
         $router->setTranslateURIDashes(true);
 
@@ -354,6 +377,7 @@ final class RouterTest extends CIUnitTestCase
 
     public function testAutoRouteRejectsMidDot()
     {
+        $this->collection->setAutoRoute(true);
         $router = new Router($this->collection, $this->request);
         $router->setTranslateURIDashes(true);
 
@@ -364,6 +388,7 @@ final class RouterTest extends CIUnitTestCase
 
     public function testAutoRouteRejectsInitController()
     {
+        $this->collection->setAutoRoute(true);
         $router = new Router($this->collection, $this->request);
         $router->setTranslateURIDashes(true);
 
@@ -386,10 +411,21 @@ final class RouterTest extends CIUnitTestCase
     {
         $router = new Router($this->collection, $this->request);
 
-        $router->handle('Admin/Admins');
+        $router->handle('admin/admins');
 
         $this->assertSame('\App\Admin\Admins', $router->controllerName());
         $this->assertSame('list_all', $router->methodName());
+    }
+
+    public function testRouteWithSlashInControllerName()
+    {
+        $this->expectExceptionMessage(
+            'The namespace delimiter is a backslash (\), not a slash (/). Route handler: \App/Admin/Admins::edit_show/$1'
+        );
+
+        $router = new Router($this->collection, $this->request);
+
+        $router->handle('admin/admins/edit/1');
     }
 
     public function testRouteWithLeadingSlash()
@@ -400,6 +436,16 @@ final class RouterTest extends CIUnitTestCase
 
         $this->assertSame('\App\Slash', $router->controllerName());
         $this->assertSame('index', $router->methodName());
+    }
+
+    public function testRouteWithDynamicController()
+    {
+        $this->expectException(RouterException::class);
+        $this->expectExceptionMessage('A dynamic controller is not allowed for security reasons. Route handler: \$2::$3/$1');
+
+        $router = new Router($this->collection, $this->request);
+
+        $router->handle('en/zoo/bar');
     }
 
     // options need to be declared separately, to not confuse PHPCBF
@@ -674,6 +720,7 @@ final class RouterTest extends CIUnitTestCase
      */
     public function testTranslateURIDashesForAutoRoute()
     {
+        $this->collection->setAutoRoute(true);
         $router = new Router($this->collection, $this->request);
         $router->setTranslateURIDashes(true);
 
@@ -688,6 +735,7 @@ final class RouterTest extends CIUnitTestCase
      */
     public function testAutoRouteMatchesZeroParams()
     {
+        $this->collection->setAutoRoute(true);
         $router = new Router($this->collection, $this->request);
 
         $router->autoRoute('myController/someMethod/0/abc');
@@ -707,8 +755,12 @@ final class RouterTest extends CIUnitTestCase
      */
     public function testAutoRouteMethodEmpty()
     {
+        $this->collection->setAutoRoute(true);
         $router = new Router($this->collection, $this->request);
+        $this->collection->setAutoRoute(true);
+
         $router->handle('Home/');
+
         $this->assertSame('Home', $router->controllerName());
         $this->assertSame('index', $router->methodName());
     }
@@ -754,6 +806,7 @@ final class RouterTest extends CIUnitTestCase
 
     public function testRouterPriorDirectory()
     {
+        $this->collection->setAutoRoute(true);
         $router = new Router($this->collection, $this->request);
 
         $router->setDirectory('foo/bar/baz', false, true);
@@ -766,6 +819,7 @@ final class RouterTest extends CIUnitTestCase
 
     public function testSetDirectoryValid()
     {
+        $this->collection->setAutoRoute(true);
         $router = new Router($this->collection, $this->request);
         $router->setDirectory('foo/bar/baz', false, true);
 
@@ -774,6 +828,7 @@ final class RouterTest extends CIUnitTestCase
 
     public function testSetDirectoryInvalid()
     {
+        $this->collection->setAutoRoute(true);
         $router = new Router($this->collection, $this->request);
         $router->setDirectory('foo/bad-segment/bar', false, true);
 

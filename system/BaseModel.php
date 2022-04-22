@@ -1076,7 +1076,7 @@ abstract class BaseModel
         $pager = Services::pager(null, null, false);
 
         if ($segment) {
-            $pager->setSegment($segment);
+            $pager->setSegment($segment, $group);
         }
 
         $page = $page >= 1 ? $page : $pager->getCurrentPage($group);
@@ -1344,7 +1344,9 @@ abstract class BaseModel
             return true;
         }
 
-        return $this->validation->setRules($rules, $this->validationMessages)->run($data, null, $this->DBGroup);
+        $this->validation->reset()->setRules($rules, $this->validationMessages);
+
+        return $this->validation->run($data, null, $this->DBGroup);
     }
 
     /**
